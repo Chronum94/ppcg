@@ -26,26 +26,35 @@ def ppcg(A, k=10, T=None, X=None, blocksize=60, rr_interval=5, qr_interval=5, to
     convergence_marker = 1.0
     vals = np.zeros(k)
     lock_idx = []
-    active_idx = set(np.arange(k))
+    all_idx = np.arange(k)
+    active_idx = np.copy(all_idx)
     Xlocked = np.array([])
-    k_active = len(active_idx)
+    Plocked = np.array([])
+    k_active = len(all_idx)
 
     # We also don't define splittings, but that may change depending on MPI requirements
     for iconvergence in range(500):
+        # Dims: Nkactive = NN @ Nkactive
         AX = A @ X
         
         # Even though this is in line 4 of algo 3, having it in here seems to help with convergence a lot.
+        # X.T @ AX dims = kactiveN @ Nkactive
+        # W dims = Nkactive - Nkactive @ kactivekactive = Nkactive
         W = (AX - X @ (X.T @ AX))
 
         if T is not None:
             W = T @ W
 
         # Lines 9 and 10
+        # Nkactive @ kactiveN @ Nkactive = Nkactive
         W -= X @ (X.T @ W)
         P -= X @ (X.T @ P) if P is not None else P
         if Xlocked.shape[-1] > 0:
+            # Nklocked @ klockedN @ Nkactive = Nkactive
             W -= Xlocked @ (Xlocked.T @ W)
             P -= Xlocked @ (Xlocked.T @ P)
+
+        # print(W.shape, P.shape)
 
         j = 0
         # print("W, P, k_active:", W.shape, P.shape, k_active)
@@ -65,6 +74,7 @@ def ppcg(A, k=10, T=None, X=None, blocksize=60, rr_interval=5, qr_interval=5, to
             # In this algorithm listing, it says k smallest eigenvalues, but shouldn't it be blocksize smallest eigenvalues?
             # Since solving the k-large eigenproblem is exactly what we're trying to avoid.
             S = np.column_stack([X[:, block_slice], W[:, block_slice], P[:, block_slice]])
+            # print("S shape", S.shape)
 
             # We only need the smallest algebraic eigenvector for this
             # But also this is the tiniest ass eigenvalue problem of 3 blocksize x 3 blocksize...
@@ -92,22 +102,22 @@ def ppcg(A, k=10, T=None, X=None, blocksize=60, rr_interval=5, qr_interval=5, to
             # Line 22
             if Xlocked.shape[-1] > 0:
                 X = np.column_stack([X, Xlocked])
+                P = np.column_stack([P, Plocked])
                 # print("X shapes", X.shape, Xlocked.shape if Xlocked is not None else None)
             # Line 23-25
             vals, vecs = eigh(X.T @ A @ X)
             # print("RR vals", vals)
             X = X @ vecs
-            W = A @ X - X @ np.diag(vals)
+            W = A @ X - X * vals[np.newaxis, :]
 
             tracenew = np.sum(np.diag(X.T @ A @ X))
             convergence_marker = np.abs(tracenew - traceold) / np.abs(traceold)
             print(iconvergence, convergence_marker)
 
             # Linw 26-29
-            lock_idx = np.linalg.norm(W, axis=0) < 1e-5
-            active_idx = np.logical_not(lock_idx)
+            lock_idx = np.linalg.norm(W, axis=0) < tol
             lock_idx = np.where(lock_idx)[0]
-            active_idx = np.where(active_idx)[0]
+            active_idx = np.setdiff1d(all_idx, lock_idx)
             k_active = len(active_idx)
             # print("Idx", lock_idx, active_idx)
 
@@ -116,19 +126,29 @@ def ppcg(A, k=10, T=None, X=None, blocksize=60, rr_interval=5, qr_interval=5, to
                 break
             traceold = tracenew
             # Update locked and active arrays
+            # print(active_idx)
             Xlocked = X[:, lock_idx]
+            Plocked = P[:, lock_idx]
             X = X[:, active_idx]
+            W = W[:, active_idx]
+            P = P[:, active_idx]
+            # try:
+            #     P = P[:, active_idx]
+            # except:
+            #     print("UWU", P.shape, active_idx)
 
-    vals, vecs = eigh(X.T @ A @ X)
-    X = X @ vecs
+    # vals, vecs = eigh(X.T @ A @ X)
+    # Xx = X @ vecs
     return vals, X
 
 np.random.seed(2354)
-n = 2000
+n = 1000
 A = np.random.rand(n, n) * 0.3 + np.diag(np.linspace(2, 20, n))
 A += A.T
-k = 400
+k = 300
 vals, vecs = np.linalg.eigh(A)
 # vals, X = ppcg(A, k=k, blocksize=80,)# T=np.diag(1 / vals))
-valst, X = ppcg(A, k=k, blocksize=50, T=None, tol=1e-7)
-print(np.abs(vals[:k] - valst) < 1e-6)
+valst, X = ppcg(A, k=k, blocksize=150, T=None, tol=1e-9)
+# plt.plot(vals[:k], np.abs(vals[:k] - valst))
+# plt.semilogy()
+plt.show()
