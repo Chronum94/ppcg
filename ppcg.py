@@ -67,7 +67,7 @@ def ppcg(A, k=10, T=None, X=None, blocksize=60, rr_interval=5, qr_interval=5, to
 
             work_XWP[:, :blocksize] = X[:, block_slice]
             work_XWP[:, blocksize:2 * blocksize] = W[:, block_slice]
-            if j > 0:
+            if iconvergence > 0:
                 nblocksizes = 3 * blocksize
                 work_XWP[:, 2*blocksize:3 * blocksize] = P[:, block_slice]
             else:
