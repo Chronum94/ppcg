@@ -5,11 +5,10 @@ from scipy.linalg import eigh
 from scipy.sparse.linalg import eigsh
 import matplotlib.pyplot as plt
 
-from line_profiler import profile
 
-@profile
-def ppcg(A, k=10, T=None, X=None, blocksize=60, rr_interval=5, qr_interval=5, tol=1e-5):
+def ppcg(A, X, T=None, tol=None, maxiter=None, blocksize=60, rr_interval=5, qr_interval=5):
     """
+
     """
     n = len(A)
     if X is None:
@@ -32,7 +31,7 @@ def ppcg(A, k=10, T=None, X=None, blocksize=60, rr_interval=5, qr_interval=5, to
     # Plocked = np.array([])
 
     # We also don't define splittings, but that may change depending on MPI requirements
-    for iconvergence in range(500):
+    for iconvergence in range(maxiter):
         # Dims: Nkactive = NN @ Nkactive
         AX = A @ X
         
@@ -139,11 +138,11 @@ def ppcg(A, k=10, T=None, X=None, blocksize=60, rr_interval=5, qr_interval=5, to
 
     return vals, X
 
-np.random.seed(2354)
-n = 1000
-A = np.random.randn(n, n) * 0.05 + np.diag(np.linspace(2, 20, n))
-A += A.T
-k = 300
-vals, vecs = np.linalg.eigh(A)
-valst, X = ppcg(A, k=k, blocksize=50, T=None, tol=1e-14, rr_interval=5)
-print(np.max(np.abs(valst - vals[:k])))
+# np.random.seed(2354)
+# n = 1000
+# A = np.random.randn(n, n) * 0.05 + np.diag(np.linspace(2, 20, n))
+# A += A.T
+# k = 300
+# vals, vecs = np.linalg.eigh(A)
+# valst, X = ppcg(A, k=k, blocksize=50, T=None, tol=1e-14, rr_interval=5)
+# print(np.max(np.abs(valst - vals[:k])))
