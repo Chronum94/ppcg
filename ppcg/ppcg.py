@@ -6,11 +6,11 @@ from scipy.sparse.linalg import eigsh
 import matplotlib.pyplot as plt
 
 
-def ppcg(A, X, T=None, tol=None, maxiter=None, blocksize=60, rr_interval=5, qr_interval=5):
+def ppcg(A, X, T=None, tol=None, maxiter=100, blocksize=60, rr_interval=5, qr_interval=5):
     """
 
     """
-    n = len(A)
+    n, k = X.shape
     if X is None:
         X, _ = np.linalg.qr(np.random.rand(n, k))
     else:
@@ -137,12 +137,3 @@ def ppcg(A, X, T=None, tol=None, maxiter=None, blocksize=60, rr_interval=5, qr_i
             traceold = tracenew
 
     return vals, X
-
-# np.random.seed(2354)
-# n = 1000
-# A = np.random.randn(n, n) * 0.05 + np.diag(np.linspace(2, 20, n))
-# A += A.T
-# k = 300
-# vals, vecs = np.linalg.eigh(A)
-# valst, X = ppcg(A, k=k, blocksize=50, T=None, tol=1e-14, rr_interval=5)
-# print(np.max(np.abs(valst - vals[:k])))
